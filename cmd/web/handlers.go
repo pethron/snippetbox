@@ -1,10 +1,12 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
 	"snippetbox.pethron.me/cmd/config"
+	"snippetbox.pethron.me/internal/models"
 	"strconv"
 )
 
@@ -40,10 +42,21 @@ func snippetView(app *config.Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, err := strconv.Atoi(r.URL.Query().Get("id"))
 		if err != nil || id < 1 {
-			notFoundError(app)
+			notFoundError(app)(w)
 			return
 		}
-		fmt.Fprintf(w, "Display a specific snippet with ID %d...", id)
+
+		snippet, err := app.Snippets.Get(id)
+		if err != nil {
+			if errors.Is(err, models.ErrNoRecord) {
+				notFoundError(app)(w)
+			} else {
+				serverError(app)(w, err)
+			}
+			return
+		}
+
+		fmt.Fprintf(w, "%v", snippet)
 	}
 }
 
