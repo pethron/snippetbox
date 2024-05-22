@@ -1,12 +1,13 @@
 package main
 
 import (
+	"github.com/justinas/alice"
 	"net/http"
 	"snippetbox.pethron.me/cmd/config"
 )
 
-func routes(app *config.Application) func() *http.ServeMux {
-	return func() *http.ServeMux {
+func routes(app *config.Application) func() http.Handler {
+	return func() http.Handler {
 		mux := http.NewServeMux()
 
 		fileServer := http.FileServer(http.Dir("./ui/static/"))
@@ -16,6 +17,9 @@ func routes(app *config.Application) func() *http.ServeMux {
 		mux.HandleFunc("/snippet/view", snippetView(app))
 		mux.HandleFunc("/snippet/create", snippetCreate(app))
 
-		return mux
+		standard := alice.New(recoverPanic(app), logRequest(app), secureHeaders)
+		return standard.Then(mux)
+
+		//return recoverPanic(app)(logRequest(app)(secureHeaders(mux)))
 	}
 }
