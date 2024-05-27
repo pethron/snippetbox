@@ -3,12 +3,16 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"github.com/alexedwards/scs/mysqlstore"
+	"github.com/alexedwards/scs/v2"
+	"github.com/go-playground/form/v4"
 	_ "github.com/go-sql-driver/mysql"
 	"log"
 	"net/http"
 	"os"
 	"snippetbox.pethron.me/cmd/config"
 	"snippetbox.pethron.me/internal/models"
+	"time"
 )
 
 func main() {
@@ -30,11 +34,19 @@ func main() {
 		errorLog.Fatal(err)
 	}
 
+	formDecoder := form.NewDecoder()
+
+	sessionManager := scs.New()
+	sessionManager.Store = mysqlstore.New(db)
+	sessionManager.Lifetime = 12 * time.Hour
+
 	app := &config.Application{
-		ErrorLog:      errorLog,
-		InfoLog:       infoLog,
-		Snippets:      &models.SnippetModel{DB: db},
-		TemplateCache: templateCache,
+		ErrorLog:       errorLog,
+		InfoLog:        infoLog,
+		Snippets:       &models.SnippetModel{DB: db},
+		TemplateCache:  templateCache,
+		FormDecoder:    formDecoder,
+		SessionManager: sessionManager,
 	}
 
 	srv := &http.Server{

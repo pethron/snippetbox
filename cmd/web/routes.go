@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/julienschmidt/httprouter"
 	"github.com/justinas/alice"
 	"net/http"
 	"snippetbox.pethron.me/cmd/config"
@@ -8,17 +9,25 @@ import (
 
 func routes(app *config.Application) func() http.Handler {
 	return func() http.Handler {
-		mux := http.NewServeMux()
+		router := httprouter.New()
+
+		router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			app.NotFoundError(w)
+		})
 
 		fileServer := http.FileServer(http.Dir("./ui/static/"))
-		mux.Handle("/static/", http.StripPrefix("/static", fileServer))
 
-		mux.HandleFunc("/", home(app))
-		mux.HandleFunc("/snippet/view", snippetView(app))
-		mux.HandleFunc("/snippet/create", snippetCreate(app))
+		dynamic := alice.New(app.SessionManager.LoadAndSave)
+
+		router.Handler(http.MethodGet, "/static/*filepath", http.StripPrefix("/static", fileServer))
+
+		router.Handler(http.MethodGet, "/", dynamic.ThenFunc(home(app)))
+		router.Handler(http.MethodGet, "/snippet/view/:id", dynamic.ThenFunc(snippetView(app)))
+		router.Handler(http.MethodGet, "/snippet/create", dynamic.ThenFunc(snippetCreate(app)))
+		router.Handler(http.MethodPost, "/snippet/create", dynamic.ThenFunc(snippetCreatePost(app)))
 
 		standard := alice.New(recoverPanic(app), logRequest(app), secureHeaders)
-		return standard.Then(mux)
+		return standard.Then(router)
 
 		//return recoverPanic(app)(logRequest(app)(secureHeaders(mux)))
 	}

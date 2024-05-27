@@ -3,19 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
+	"github.com/julienschmidt/httprouter"
 	"net/http"
 	"snippetbox.pethron.me/cmd/config"
 	"snippetbox.pethron.me/internal/models"
+	"snippetbox.pethron.me/internal/validator"
 	"strconv"
 )
 
 func home(app *config.Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			app.NotFoundError(w)
-			return
-		}
-
 		snippets, err := app.Snippets.Latest()
 		if err != nil {
 			app.ServerError(w, err)
@@ -31,7 +28,9 @@ func home(app *config.Application) http.HandlerFunc {
 
 func snippetView(app *config.Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		id, err := strconv.Atoi(r.URL.Query().Get("id"))
+		params := httprouter.ParamsFromContext(r.Context())
+
+		id, err := strconv.Atoi(params.ByName("id"))
 		if err != nil || id < 1 {
 			app.NotFoundError(w)
 			return
@@ -56,20 +55,51 @@ func snippetView(app *config.Application) http.HandlerFunc {
 
 func snippetCreate(app *config.Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			w.Header().Set("Allow", http.MethodPost)
-			app.ClientError(w, http.StatusMethodNotAllowed)
+		data := app.NewTemplateData(r)
+		data.Form = snippetCreateForm{
+			Expires: 365,
+		}
+
+		app.Render(w, http.StatusOK, "create.tmpl", data)
+	}
+}
+
+type snippetCreateForm struct {
+	Title               string `form:"title"`
+	Content             string `form:"content"`
+	Expires             int    `form:"expires"`
+	validator.Validator `form:"-"`
+}
+
+func snippetCreatePost(app *config.Application) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var form snippetCreateForm
+
+		err := app.DecodePostForm(r, &form)
+		if err != nil {
+			app.ClientError(w, http.StatusBadRequest)
 			return
 		}
 
-		title := "O snail"
-		content := "O snail\nClimb Mount Fuji,\nBut slowly, slowly!\n\n–Kobayashi Issa"
-		expires := 7
-		id, err := app.Snippets.Insert(title, content, expires)
+		form.CheckField(validator.NotBlank(form.Title), "title", "This field cannot be blank")
+		form.CheckField(validator.MaxChars(form.Title, 100), "title", "This field cannot be more than 100 characters long")
+		form.CheckField(validator.NotBlank(form.Content), "content", "This field cannot be blank")
+		form.CheckField(validator.PermittedInt(form.Expires, 1, 7, 365), "expires", "This field must equal 1, 7 or 365")
+
+		if !form.Valid() {
+			data := app.NewTemplateData(r)
+			data.Form = form
+			app.Render(w, http.StatusUnprocessableEntity, "create.tmpl", data)
+			return
+		}
+
+		id, err := app.Snippets.Insert(form.Title, form.Content, form.Expires)
 		if err != nil {
 			app.ServerError(w, err)
 		}
 
-		http.Redirect(w, r, fmt.Sprintf("/snippet/view?id=%d", id), http.StatusSeeOther)
+		app.SessionManager.Put(r.Context(), "flash", "Snippet successfully created!")
+
+		http.Redirect(w, r, fmt.Sprintf("/snippet/view/%d", id), http.StatusSeeOther)
 	}
 }
