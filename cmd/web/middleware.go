@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/justinas/nosurf"
 	"net/http"
@@ -87,6 +88,31 @@ func requireAuthentication(app *config.Application) func(next http.Handler) http
 			}
 
 			w.Header().Add("Cache-Control", "no-store")
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func Authenticate(app *config.Application) func(next http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			id := app.SessionManager.GetInt(r.Context(), "authenticatedUserID")
+			if id == 0 {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			exists, err := app.Users.Exists(id)
+			if err != nil {
+				app.ServerError(w, err)
+				return
+			}
+
+			if exists {
+				ctx := context.WithValue(r.Context(), config.IsAuthenticatedContextKey, true)
+				r = r.WithContext(ctx)
+			}
+
 			next.ServeHTTP(w, r)
 		})
 	}

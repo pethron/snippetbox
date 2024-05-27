@@ -20,7 +20,7 @@ func routes(app *config.Application) func() http.Handler {
 		router.Handler(http.MethodGet, "/static/*filepath", http.StripPrefix("/static", fileServer))
 
 		// unprotected
-		dynamic := alice.New(app.SessionManager.LoadAndSave, noSurf)
+		dynamic := alice.New(app.SessionManager.LoadAndSave, noSurf, Authenticate(app))
 
 		router.Handler(http.MethodGet, "/", dynamic.ThenFunc(home(app)))
 		router.Handler(http.MethodGet, "/snippet/view/:id", dynamic.ThenFunc(snippetView(app)))
