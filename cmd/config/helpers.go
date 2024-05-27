@@ -67,3 +67,7 @@ func (app *Application) DecodePostForm(r *http.Request, dst any) error {
 	}
 	return nil
 }
+
+func (app *Application) IsAuthenticated(r *http.Request) bool {
+	return app.SessionManager.Exists(r.Context(), "authenticatedUserID")
+}

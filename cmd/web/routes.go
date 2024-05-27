@@ -17,14 +17,25 @@ func routes(app *config.Application) func() http.Handler {
 
 		fileServer := http.FileServer(http.Dir("./ui/static/"))
 
-		dynamic := alice.New(app.SessionManager.LoadAndSave)
-
 		router.Handler(http.MethodGet, "/static/*filepath", http.StripPrefix("/static", fileServer))
+
+		// unprotected
+		dynamic := alice.New(app.SessionManager.LoadAndSave, noSurf)
 
 		router.Handler(http.MethodGet, "/", dynamic.ThenFunc(home(app)))
 		router.Handler(http.MethodGet, "/snippet/view/:id", dynamic.ThenFunc(snippetView(app)))
-		router.Handler(http.MethodGet, "/snippet/create", dynamic.ThenFunc(snippetCreate(app)))
-		router.Handler(http.MethodPost, "/snippet/create", dynamic.ThenFunc(snippetCreatePost(app)))
+		router.Handler(http.MethodGet, "/user/signup", dynamic.ThenFunc(userSignup(app)))
+		router.Handler(http.MethodPost, "/user/signup", dynamic.ThenFunc(userSignupPost(app)))
+		router.Handler(http.MethodGet, "/user/login", dynamic.ThenFunc(userLogin(app)))
+		router.Handler(http.MethodPost, "/user/login", dynamic.ThenFunc(userLoginPost(app)))
+
+		// protected
+
+		protected := dynamic.Append(requireAuthentication(app))
+
+		router.Handler(http.MethodGet, "/snippet/create", protected.ThenFunc(snippetCreate(app)))
+		router.Handler(http.MethodPost, "/snippet/create", protected.ThenFunc(snippetCreatePost(app)))
+		router.Handler(http.MethodPost, "/user/logout", protected.ThenFunc(userLogoutPost(app)))
 
 		standard := alice.New(recoverPanic(app), logRequest(app), secureHeaders)
 		return standard.Then(router)

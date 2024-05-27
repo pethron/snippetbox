@@ -1,6 +1,7 @@
 package config
 
 import (
+	"github.com/justinas/nosurf"
 	"html/template"
 	"net/http"
 	"path/filepath"
@@ -9,11 +10,13 @@ import (
 )
 
 type TemplateData struct {
-	CurrentYear int
-	Snippet     *models.Snippet
-	Snippets    []*models.Snippet
-	Form        any
-	Flash       string
+	CurrentYear     int
+	Snippet         *models.Snippet
+	Snippets        []*models.Snippet
+	Form            any
+	Flash           string
+	IsAuthenticated bool
+	CSRFToken       string
 }
 
 func humanDate(t time.Time) string {
@@ -64,7 +67,9 @@ func NewTemplateCache() (map[string]*template.Template, error) {
 
 func (app *Application) NewTemplateData(r *http.Request) *TemplateData {
 	return &TemplateData{
-		CurrentYear: time.Now().Year(),
-		Flash:       app.SessionManager.PopString(r.Context(), "flash"),
+		CurrentYear:     time.Now().Year(),
+		Flash:           app.SessionManager.PopString(r.Context(), "flash"),
+		IsAuthenticated: app.IsAuthenticated(r),
+		CSRFToken:       nosurf.Token(r),
 	}
 }
