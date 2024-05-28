@@ -5,6 +5,7 @@ import (
 	"github.com/justinas/alice"
 	"net/http"
 	"snippetbox.pethron.me/cmd/config"
+	"snippetbox.pethron.me/ui"
 )
 
 func routes(app *config.Application) func() http.Handler {
@@ -15,9 +16,9 @@ func routes(app *config.Application) func() http.Handler {
 			app.NotFoundError(w)
 		})
 
-		fileServer := http.FileServer(http.Dir("./ui/static/"))
+		fileServer := http.FileServer(http.FS(ui.Files))
 
-		router.Handler(http.MethodGet, "/static/*filepath", http.StripPrefix("/static", fileServer))
+		router.Handler(http.MethodGet, "/static/*filepath", fileServer)
 
 		// unprotected
 		dynamic := alice.New(app.SessionManager.LoadAndSave, noSurf, Authenticate(app))

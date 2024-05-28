@@ -3,9 +3,11 @@ package config
 import (
 	"github.com/justinas/nosurf"
 	"html/template"
+	"io/fs"
 	"net/http"
 	"path/filepath"
 	"snippetbox.pethron.me/internal/models"
+	"snippetbox.pethron.me/ui"
 	"time"
 )
 
@@ -20,7 +22,10 @@ type TemplateData struct {
 }
 
 func humanDate(t time.Time) string {
-	return t.Format("02 Jan 2006 at 15:04")
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format("02 Jan 2006 at 15:04")
 }
 
 var functions = template.FuncMap{
@@ -35,8 +40,9 @@ func NewTemplateCache() (map[string]*template.Template, error) {
 	// match the pattern "./ui/html/pages/*.tmpl". This will essentially gives
 	// us a slice of all the filepaths for our application 'page' templates
 	// like: [ui/html/pages/home.tmpl ui/html/pages/view.tmpl]
-	pages, err := filepath.Glob("./ui/html/pages/*.tmpl")
+	pages, err := fs.Glob(ui.Files, "html/pages/*.tmpl")
 	if err != nil {
+
 		return nil, err
 	}
 
@@ -44,21 +50,17 @@ func NewTemplateCache() (map[string]*template.Template, error) {
 	for _, page := range pages {
 		name := filepath.Base(page)
 
-		ts, err := template.New(name).Funcs(functions).ParseFiles("./ui/html/base.tmpl")
+		patterns := []string{
+			"html/base.tmpl",
+			"html/partials/*.tmpl",
+			page,
+		}
+
+		ts, err := template.New(name).Funcs(functions).ParseFS(ui.Files,
+			patterns...)
 		if err != nil {
 			return nil, err
 		}
-
-		ts, err = ts.ParseGlob("./ui/html/partials/*.tmpl")
-		if err != nil {
-			return nil, err
-		}
-
-		ts, err = ts.ParseFiles(page)
-		if err != nil {
-			return nil, err
-		}
-
 		cache[name] = ts
 	}
 
