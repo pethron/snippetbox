@@ -236,6 +236,13 @@ func userLogoutPost(app *config.Application) http.HandlerFunc {
 	}
 }
 
+func about(app *config.Application) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := app.NewTemplateData(r)
+		app.Render(w, http.StatusOK, "about.tmpl", data)
+	}
+}
+
 func ping(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }

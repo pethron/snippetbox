@@ -16,4 +16,5 @@ type Application struct {
 	TemplateCache  map[string]*template.Template
 	FormDecoder    *form.Decoder
 	SessionManager *scs.SessionManager
+	Debug          bool
 }
