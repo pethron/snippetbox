@@ -270,6 +270,48 @@ func accountView(app *config.Application) http.HandlerFunc {
 	}
 }
 
+type accountPasswordUpdateForm struct {
+	CurrentPassword         string `form:"password"`
+	NewPassword             string `form:"password"`
+	NewPasswordConfirmation string `form:"password"`
+	validator.Validator     `form:"-"`
+}
+
+func accountPasswordUpdate(app *config.Application) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		data := app.NewTemplateData(r)
+		data.Form = accountPasswordUpdateForm{}
+		app.Render(w, http.StatusOK, "password.tmpl", data)
+	}
+}
+
+func accountPasswordUpdatePost(app *config.Application) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var form accountPasswordUpdateForm
+
+		err := app.DecodePostForm(r, &form)
+		if err != nil {
+			app.ClientError(w, http.StatusBadRequest)
+			return
+		}
+
+		form.CheckField(validator.NotBlank(form.CurrentPassword), "currentPassword", "This field cannot be blank")
+		form.CheckField(validator.NotBlank(form.NewPassword), "newPassword", "This field cannot be blank")
+		form.CheckField(validator.NotBlank(form.NewPasswordConfirmation), "newPasswordConfirmation", "This field cannot be blank")
+		form.CheckField(validator.MinChars(form.CurrentPassword, 8), "currentPassword", "This field must be at least 8 characters")
+		form.CheckField(validator.MinChars(form.NewPassword, 8), "newPassword", "This field must must be at least 8 characters")
+		form.CheckField(validator.MinChars(form.NewPasswordConfirmation, 8), "newPasswordConfirmation", "This field must be at least 8 characters")
+
+		if !form.Valid() {
+			data := app.NewTemplateData(r)
+			data.Form = form
+			app.Render(w, http.StatusUnprocessableEntity, "password.tmpl", data)
+			return
+		}
+
+	}
+}
+
 func ping(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("OK"))
 }
