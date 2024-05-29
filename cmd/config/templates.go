@@ -13,6 +13,7 @@ import (
 
 type TemplateData struct {
 	CurrentYear     int
+	User            *models.User
 	Snippet         *models.Snippet
 	Snippets        []*models.Snippet
 	Form            any

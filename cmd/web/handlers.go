@@ -219,6 +219,13 @@ func userLoginPost(app *config.Application) http.HandlerFunc {
 		}
 
 		app.SessionManager.Put(r.Context(), "authenticatedUserID", id)
+
+		redirect := app.SessionManager.PopString(r.Context(), "redirectPathAfterLogin")
+		if redirect != "" {
+			r.URL.Path = redirect
+			http.Redirect(w, r, redirect, http.StatusSeeOther)
+		}
+
 		http.Redirect(w, r, "/snippet/create", http.StatusSeeOther)
 	}
 }
@@ -240,6 +247,26 @@ func about(app *config.Application) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		data := app.NewTemplateData(r)
 		app.Render(w, http.StatusOK, "about.tmpl", data)
+	}
+}
+
+func accountView(app *config.Application) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		userID := app.SessionManager.GetInt(r.Context(), "authenticatedUserID")
+
+		user, err := app.Users.Get(userID)
+		if err != nil {
+			if errors.Is(err, models.ErrNoRecord) {
+				app.NotFoundError(w)
+			} else {
+				app.ServerError(w, err)
+			}
+			return
+		}
+
+		data := app.NewTemplateData(r)
+		data.User = user
+		app.Render(w, http.StatusOK, "account.tmpl", data)
 	}
 }
 
