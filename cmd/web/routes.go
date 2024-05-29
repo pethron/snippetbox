@@ -20,6 +20,8 @@ func routes(app *config.Application) func() http.Handler {
 
 		router.Handler(http.MethodGet, "/static/*filepath", fileServer)
 
+		router.HandlerFunc(http.MethodGet, "/ping", ping)
+
 		// unprotected
 		dynamic := alice.New(app.SessionManager.LoadAndSave, noSurf, Authenticate(app))
 
