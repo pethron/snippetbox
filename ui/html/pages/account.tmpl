@@ -10,12 +10,14 @@
                 <th>Name</th>
                 <th>Email</th>
                 <th>Created</th>
+                <th>Password</th>
             </tr>
             <tr>
                 <td>{{.ID}}</td>
                 <td>{{.Name}}</td>
                 <td>{{.Email}}</td>
                 <td>{{humanDate .Created}}</td>
+                <td><a href='/account/password/update'>Change Password</a></td>
             </tr>
         </table>
     </div>

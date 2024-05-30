@@ -148,8 +148,7 @@ func userSignupPost(app *config.Application) http.HandlerFunc {
 				form.AddFieldError("email", "Email address is already in use")
 				data := app.NewTemplateData(r)
 				data.Form = form
-				app.Render(w, http.StatusUnprocessableEntity, "signup.tmpl",
-					data)
+				app.Render(w, http.StatusUnprocessableEntity, "signup.tmpl", data)
 			} else {
 				app.ServerError(w, err)
 			}
@@ -271,9 +270,9 @@ func accountView(app *config.Application) http.HandlerFunc {
 }
 
 type accountPasswordUpdateForm struct {
-	CurrentPassword         string `form:"password"`
-	NewPassword             string `form:"password"`
-	NewPasswordConfirmation string `form:"password"`
+	CurrentPassword         string `form:"currentPassword"`
+	NewPassword             string `form:"newPassword"`
+	NewPasswordConfirmation string `form:"newPasswordConfirmation"`
 	validator.Validator     `form:"-"`
 }
 
@@ -309,6 +308,23 @@ func accountPasswordUpdatePost(app *config.Application) http.HandlerFunc {
 			return
 		}
 
+		userID := app.SessionManager.GetInt(r.Context(), "authenticatedUserID")
+		err = app.Users.PasswordUpdate(userID, form.CurrentPassword, form.NewPassword)
+		if err != nil {
+			if errors.Is(err, models.ErrInvalidCredentials) {
+				form.AddFieldError("currentPassword", "Password is wrong")
+				data := app.NewTemplateData(r)
+				data.Form = form
+				app.Render(w, http.StatusUnprocessableEntity, "password.tmpl", data)
+				return
+			}
+
+			app.ServerError(w, err)
+			return
+		}
+
+		app.SessionManager.Put(r.Context(), "flash", "You've changed your password!")
+		http.Redirect(w, r, "/account/view", http.StatusSeeOther)
 	}
 }
 

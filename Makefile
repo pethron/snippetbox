@@ -7,5 +7,9 @@ start:
 	docker start $(DB)
 	go run ./cmd/web
 
+debug:
+	docker start $(DB)
+	go run ./cmd/web -debug
+
 stop:
 	docker stop $(DB)
